@@ -1,0 +1,105 @@
+- name: install java & net-tools
+  hosts: ec2-instance
+  become: true
+  tasks:
+    - name: Update apt repo 
+      apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+    - name: install java 
+      apt: name=openjdk-8-jre-headless
+    - name: install net-tools 
+      apt: name=net-tools
+
+- name: download and unpack nexus 
+  hosts: ec2-instance
+  become: true
+  tasks:
+    - name: download nexus
+      get_url: 
+        url: https://download.sonatype.com/nexus/3/nexus-3.36.0-01-unix.tar.gz
+        dest: /opt
+    - name: untar nexus 
+      unarchive:
+         src: /opt/nexus-3.36.0-01-unix.tar.gz
+         dest: /opt
+         remote_src: yes
+    - name: find nexus folder
+      find: 
+        paths: /opt
+        pattern: "nexus-*"
+        file_type: directory
+      register: find_results
+    - debug: msg={{find_results}}
+    - name: check if nexus user exist
+      stat: 
+        path: /opt/nexus
+      register: stat_results
+    - debug: msg={{stat_results.stat.exists}}
+    - name: rename nexus folder
+      shell: mv {{find_results.files[0].path}} /opt/nexus
+      when: not stat_results.stat.exists
+
+- name: create nexus user and make it owner
+  hosts: ec2-instance
+  become: true
+  tasks:
+    - name: create nexus group
+      group:
+        name: nexus
+        state: present 
+    - name: create nexus user
+      user: 
+        name: nexus
+        group: nexus
+    - name: make nexus user owner of nexus folder
+      file:
+        path: /opt/nexus
+        state: directory
+        owner: nexus
+        group: nexus
+        recurse: yes
+    - name: make nexus user owner of sonatype folder
+      file:
+        path: /opt/sonatype-work
+        state: directory
+        owner: nexus
+        group: nexus
+        recurse: yes
+
+- name: start nexus with nexus user
+  hosts: ec2-instance
+  become: true
+  
+  tasks:
+    - name: set run_as_user = nexus
+      blockinfile:
+          path: /opt/nexus/bin/nexus.rc
+          block: | #pipe represents multi line string
+              run_as_user="nexus"
+
+      #lineinfile: #replace a line in the file
+           #path: /opt/nexus/bin/nexus.rc
+           #regexp: '#run_as_user=""' #the line from the file to be replaced
+           #line: run_as_user="nexus"  # the info to replace that line
+
+    - name: start nexus
+      command: /opt/nexus/bin/nexus start
+    
+- name: verify that nexus is running
+  hosts: ec2-instance
+  become: true
+  tasks:
+     - name: check with ps aux
+       shell: ps aux | grep nexus
+       register: app_status
+     - debug: msg={{app_status}}
+     - name: wait for one minute
+       pause:
+          minute: 1
+     - name: check with netstat 
+       shell: netstat -plnt
+       register: app_status
+     - debug: msg={{app_status}}
+
+
+
+
