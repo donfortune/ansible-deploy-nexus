@@ -19,7 +19,7 @@
         dest: /opt
     - name: untar nexus 
       unarchive:
-         src: /opt/nexus-3.36.0-01-unix.tar.gz
+         src: /opt/nexus-3.36.0-01-unix.tar.gz #location of nexus tar file 
          dest: /opt
          remote_src: yes
     - name: find nexus folder
