@@ -15,7 +15,7 @@
   tasks:
     - name: download nexus
       get_url: 
-        url: https://download.sonatype.com/nexus/3/nexus-3.36.0-01-unix.tar.gz
+        url: https://download.sonatype.com/nexus/3/nexus-3.38.0-01-unix.tar.gz
         dest: /opt
     - name: untar nexus 
       unarchive:
